@@ -1,0 +1,6 @@
+node_modules/
+.wwebjs_auth/
+.wwebjs_cache/
+.env            
+*.log           # Abaikan semua file dengan ekstensi .log
+desa-sosok-kgnm-b6afda4cb536.json
