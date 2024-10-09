@@ -4,6 +4,9 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
 
 const axios = require("axios");
+const { v4: uuidv4 } = require("uuid");
+const { runDialogFlow } = require("./dialog_flow");
+const { cekSpreadsheetMessage } = require("./message_spreadsheet");
 
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -11,7 +14,6 @@ const client = new Client({
 
 // inisial API KEY Spreadsheet
 const dotenv = require("dotenv");
-const { runDialogFlowSusenas } = require("./dialog_flow_susenas");
 dotenv.config();
 const API = process.env.APIKEY;
 
@@ -77,14 +79,14 @@ async function saveMessage(message) {
 
     // mengkondisikan jika pesan nya secara personal maka akan di proses oleh bot
     if (message.id.remote.includes("@c.us") && message.type === "chat") {
-      await useTemplateMessageKawanSusenas(message, contact);
+        await useTemplateMessageKawan(message, contact);
     }
   } catch (error) {
     console.log(error);
   }
 }
 
-async function useTemplateMessageKawanSusenas(message, contact) {
+async function useTemplateMessageKawan(message, contact) {
   try {
     // tanda sudah masuk fungsi useTemplateMessage()
     console.log("masuk fungsi proses pesan");
@@ -98,9 +100,21 @@ async function useTemplateMessageKawanSusenas(message, contact) {
     // mengubah status bot menjadi sedang mengetik....
     await chat.sendStateTyping();
 
+    // memeriksa pesan opsional di spreadsheet
+    const response = await cekSpreadsheetMessage(message.body);
+
+    // inisiasi pesan kosong
     let asnwer = "";
 
-    asnwer = await runDialogFlowSusenas(message.body);
+    // cek pesan di spreadsheet
+    console.log(`hasil cek local message = ${response}`);
+
+    if (response) {
+      asnwer = response;
+    } else {
+      // cek pesan otomatis dan validasi dengan bot ai
+      asnwer = await runDialogFlow(message.body);
+    }
 
     // hitung waktu pengetikkan
     const typingTime = Math.min((asnwer["message"].length / 200) * 60000, 2000);
@@ -113,8 +127,23 @@ async function useTemplateMessageKawanSusenas(message, contact) {
       contact.id._serialized,
       `${asnwer["message"].toString()}`
     );
+
+    // save record pesan dari user
+    await axios.get(
+      `${API}?id=${uuidv4()}&no=${contact.id.user}&name=${
+        contact.name
+      }&message=${message.body}&action=save-record-message&status=receive`
+    );
+
+    // save record pesan dari bot
+    await axios.get(
+      `${API}?id=${uuidv4()}&no=chatbot&name=BotKawan&message=${
+        asnwer["message"]
+      }&action=save-record-message&status=send`
+    );
   } catch (error) {
     console.log(`error kirim pesan: ${error}`);
   }
 }
+
 client.initialize();

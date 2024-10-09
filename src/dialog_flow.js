@@ -6,14 +6,15 @@ require("dotenv").config();
  * Send a query to the dialogflow agent, and return the query result.
  * @param {string} projectId The project to be used
  */
-const runDialogFlowSusenas = async (message) => {
+const runDialogFlow = async (message) => {
   // A unique identifier for the given session
-  const projectId = process.env.PROJECT_ID_DESA_SOSOK;
+  const projectId = process.env.PROJECT_ID;
+  const idCredential = process.env.CODE_CREDENTIAL_ID;
   const sessionId = uuid.v4();
 
   // Create a new session
   const sessionClient = new dialogflow.SessionsClient({
-    keyFilename: "desa-sosok-kgnm-b6afda4cb536.json",
+    keyFilename: idCredential,
   });
   const sessionPath = sessionClient.projectAgentSessionPath(
     projectId,
@@ -41,18 +42,33 @@ const runDialogFlowSusenas = async (message) => {
   console.log(`  Response: ${result.fulfillmentText}`);
   if (result.intent) {
     console.log(`  Intent: ${result.intent.displayName}`);
+    if (result.intent.displayName === "Default Fallback Intent") {
+      const messageGeminiAi = await runGeminiAi(message);
+      const jsonMessage = {
+        "message": messageGeminiAi,
+        "intent": result.intent.displayName
+      }
+      return jsonMessage;
+    } else {
       const jsonMessage = {
         "message": `${result.fulfillmentText}\n\n*Disclaimer:*\nJawaban ini dihasilkan oleh sistem otomatis. Kami sangat menghargai saran dan kritik Anda untuk pengembangan yang lebih baik. Terima kasih!😁`,
         "intent": result.intent.displayName
       }
       return jsonMessage;
+    }
   } else {
     const jsonMessage = {
       "message": "Pesan tidak teridentifikasi, mohon coba pesan lainnya",
       "intent": "tidak teridentifikasi"
     }
-    return jsonMessage;
   }
 };
 
-module.exports.runDialogFlowSusenas = runDialogFlowSusenas;
+// async function start(){
+//   const message = await runDialogFlow("assalamualaikum");
+//   console.log(message);
+// }
+
+// start();
+
+module.exports.runDialogFlow = runDialogFlow;
